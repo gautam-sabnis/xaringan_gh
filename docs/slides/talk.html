@@ -29,7 +29,7 @@ class:animated, slideInRight
   - Sparse factor models
   - Bayesian sparse fatent models
 - Choice of Priors
-- Posterior Computation: Gibbs sampler
+- Posterior Computation: MCMC sampler
 - A Divide and Conquer Framework
   - Divide
   - Fit
@@ -39,19 +39,20 @@ class:animated, slideInRight
 
 ???
 
-- Thanks for having me! In this talk, I will present a method for estimating a very large covariance matrix for very many variables.
+- Thanks for having me! In this talk, I will present a distributed computing approach for estimating massive covariance matrices via high dimensional Bayesian factor models.
 
-- A covariance matrix is a matrix whose diagonal entries contain the variances of each variable and the off-diagonal entries contrain the covariances each pair of variables. The covariance matrix measures the degree to which each pair of these variables is linearly associated. 
+- A key computational challenge encountered by existing methods for covariance matrix estimation in this frameowrk is that they require storage of large matrices in memory and repeated, computationally expensive matrix operations. 
 
-- This technique might be very useful in immunological studies where one is interested in examining relationships between different cytokines measured in the same individual. 
+- This limits the scalability of these approaches in applications even with moderate dimensions. 
+
+- The main goal of this work is to have a modeling framework to remove the computational bottlenecks that arise in posterior inference in these models. 
 
 
 Outline 
 
 Here's the outline of my talk. 
 
-First I will give an overview of the propblem.
-
+First I will give a brief overview, introduce the covariance matrix problem, introduce factor models and its variants and how they can be used to estimate covariance matrices. I will set up the Bayesian framework with appropriate priors and describe the MCMC sampler for doing inferences in this framework. We will see why the existing methods can't scale well. Next, I will introduce our Divide-and-Conquer modeling framework and show some simulation studies to convince you about the advantages of our approach. I will conclude with an application to a thyroid gene expression dataset. 
 
 ---
 
@@ -60,7 +61,7 @@ class: animated, fadeInDown
 
 - High-dimensional data is ubiquitous in modern applications
 
-- Example: Gene expression microarray analysis. `\(p =\)` number of genes, `\(n =\)` number of samples
+- Example: Omics study where `\(p =\)` biological variables, `\(n =\)` number of samples
 
 - High-dimensional data: `\(p \gg n\)` 
 
@@ -71,21 +72,19 @@ class: animated, fadeInDown
 
 ???
 
-High-dimensional data is common in many modern applications. For example, in microarray experiments, data on a large number of genes is gathered. 
+High-dimensional data is common in many modern applications. For example, in an omics study, data on a large number of biological variables is gathered for a small number of samples. 
 
-In statistics lingo, we think of genes as variables. This means that the observations are in a `\(p-\)`dimensional space where `\(p &gt;&gt; n\)`. 
+This means that the observations are represented in `\(p-\)`dimensional spaces where `\(p\)` can range from serveral hundreds to millions. 
 
 The curse of dimensionality relates to the fact that classical statistical methods generally breakdown in these settings. 
 
-In terms of microarrays, this means that, apriori, we need an enormous amount of samples to find out, for example, which genes have altered expressions in a specific tumor type. 
-
-A very effective way of dealing with high-dimensional data is through dimensionality reduction (DR). Low dimensional representations of the data that remove the noise but retain the signal can be instrumental in understanding hidden structures and patterns. 
+The goal of dimension reduction is to identify a set of new variables using a linear combination of original variables such that the number of new variables is much smaller than `\(p\)`. 
 
 ---
 
 class:animated, fadeInDown
 
-# Covariance Estimation 
+# Covariance Matrix Estimation 
 - Goal: estimate a covariance matrix `\(\Sigma \in \mathbb{R}^{p \times p}\)`
 
 - given i.i.d. samples `\(y_i \sim N(0, \Sigma)\)`, for `\(i = \ldots, n\)`
@@ -101,9 +100,12 @@ class:animated, fadeInDown
 
 ???
 
+
+- A covariance matrix is a matrix whose diagonal entries contain the variances of each variable and the off-diagonal entries contrain the covariances each pair of variables. The covariance matrix measures the degree to which each pair of these variables is linearly associated. 
+
 - Given `\(n\)` i.i.d. copies of a p-dimensional Gaussian random vector, we wish to estimate `\(\Sigma\)`. 
 
-- Why covariance estimation? Covariance matrices play an important role in many dimension reduction technqiues and estimation procedures in statistics and machine learning. Here is a list of some prominant cases. 
+- Why covariance estimation? Covariance matrices play an important role in many dimension reduction techniques and estimation procedures in statistics and machine learning. Here is a list of some prominant cases. 
 
 - For example, in PCA, we want to find a low-dimensional coordinate system to project the data in such a way that the variance is maximized. This is done by applying a SVD to the covariance matrix. 
 
@@ -113,7 +115,7 @@ class:animated, fadeInDown
 
 - In GLS, we allow the errors to be correlated and the estimation of the parameters then requires the estimation of noise covariance matrix. 
 
-- CCA finds maximally correlation linear combinations of two vector valued random variables. This relies on covariances and cross-covariances. 
+- CCA finds maximally correlated linear combinations of two vector valued random variables. This relies on covariances and cross-covariances. 
 
 ---
 
@@ -140,9 +142,9 @@ The standard estimator of the population covariance matrix is the sample covaria
 
 This is because an unstructured matrix has too many degrees of freedom.
 
-Regularization reduces the effective degrees of freedom by assuming an inherent dependence structure. Some examples of these structures are banding, tapering, sparse etc. and they are usually motivated via scientific applications. 
+There is a lot of interest in regularized estimation where they assume a structure (motivated by the application at hand) that reduces the degrees of freedom. 
 
-An alternative approach to reducing the degrees of freedom is through low intrinsic dimensionality. Low intrinsic dimensionality posits that the dependencies between the variables are captured by a small number of latent components called factors that seperate the common sources of variation from variable sepecific noise. 
+An alternative approach to reducing the degrees of freedom is through low intrinsic dimensionality. We will see how this is done in the next few slides. 
 
 ---
 
@@ -157,6 +159,7 @@ class:animated, fadeInDown
 - `\(\Lambda \in \mathbb{R}^{p \times k}\)` is a tall-skinny (k &lt;&lt; p)               `\({\color{blue}{\text{factor loadings}}}\)` matrix 
 
 - `\(\mathbb{E}(\eta) = 0\)`, `\(\text{Var}(\eta) = \mathrm{I}_k\)`
+
 ???
 
 Factor models provide a particularly useful framework for reducing the dimensionality. 
@@ -187,9 +190,9 @@ which leads to dimension reduction
 ???
 Under these assumptions, marginalizing out the factors gives us a matrix factorization for `\(\Sigma\)` that can be written as a sum of a low-rank plus a sparse matrix. 
 
-The number of unknown entries on the right is linear in p on the right, and quadratic in p on left. 
+The problem of estimating `\(\Sigma\)` is reduced to estimating estimating two matrices, namely, `\(\Lambda\)` and `\(\Omega\)`. This leads to dimensionality reductions as the number of entries to be estimated are reduced from `\(p^2\)` on the left to `\(pk + p\)` on the right. 
 
-Our estimation problem is reduced to estimating a low rank matrix `\(\Lambda\)` and a diagonal sparse matrix `\(\Omega\)`. 
+Low intrinsic dimensionality posits that the dependencies between the variables are captured by a small number of latent components called factors that seperate the common sources of variation from variable sepecific noise. 
 
 Although the original specification of factor model leads to dimensionality reduction, the problem is still challenging when `\(p\)` is very large. 
 
@@ -274,29 +277,31 @@ class: animated, fadeInDown
 # Posterior Computation
 
 ####MCMC Sampler
-If the current state is `\((\Lambda^{(t)}, \eta^{(t)}, \Omega^{(t)})\)` at the `\(t^{\text{th}}\)` iteration, then update the parameter values by cycling through the following steps, 
+If the current state is `\((\Lambda_t, \eta_t, \Omega_t)\)` at the `\(t^{\text{th}}\)` iteration, then update the parameter values by cycling through the following steps, 
 
-- Sample `\(\eta^{(t+1)} \sim \Pi_k(\eta \mid \Lambda^{(t)}, \Omega^{(t)})\)`
-- Sample `\(\Lambda_j^{(t+1)} \sim \Pi_k(\Lambda_j \mid \eta^{(t+1)}, \Omega^{(t)})\)`
-- Sample `\(\Omega^{(t+1)} \sim \Pi_p(\Omega \mid \Lambda^{(t+1)}, \eta^{(t+1)})\)`
-- Sample `\(\Phi_j^{(t+1)} \sim \Pi_k(\Phi \mid \Lambda^{(t+1)}, \delta^{(t)})\)`
-- Sample `\(\delta^{(t+1)} \sim \Pi(\delta \mid \Lambda^{(t+1)}, \Phi^{(t+1)})\)`
-- Sample the hyperparameters `\(a_1\)` and `\(a_2\)`
+- Sample `\(\eta_{(t+1)} \sim N_k(\mu_\eta,\Sigma_\eta \mid \Lambda_t, \Omega_t)\)`
+- Sample `\(\Lambda_{j_{(t+1)}} \sim N_k(\mu_\Lambda,\Sigma_\Lambda \mid \eta_{(t+1)}, \Omega_t)\)`
+- Sample `\(\omega^{-2}_{(t+1)} \sim \Gamma(a_\omega, b_\omega \mid \Lambda_{(t+1)}, \eta_{(t+1)})\)`
+- Sample `\(\Phi_{j_{(t+1)}} \sim \Gamma(a_\phi, b_\phi \mid \Lambda_{(t+1)}, \delta_t)\)`
+- Sample `\(\delta_{(t+1)} \sim \Gamma(a_\delta, b_\delta \mid \Lambda_{(t+1)}, \Phi_{(t+1)})\)`
+- Sample the hyperparameters `\(a_1\)` and `\(a_2\)` using a Metropolis-Hastings step within the sampler. 
 
 ???
 
 As I said earlier, inferences in a Bayesian model are based on our ability to draw samples of parameters from the posterior distribution. To draw these samples, we cycle through the following steps of Gibbs sampler. 
 
-In each step, if the distribution on the right is a known distribution, then sampling from it is straightforward although it can be computationally expensive. If no closed form exists, then we have to resort to Metropolis-Hastings step. 
+Read off the slide and explain everything in detail. For example, we draw from k-dimensional Gaussian distribution with parameters `\(\mu_\eta\)` and `\(\Sigma_\eta\)` which depend on the parameters `\(\Lambda\)` and `\(\Omega\)` from the previous iteration. 
 
-In any case if we do this long enough, then eventually we would be drawing samples from the target posterior distribution.  
+So you see how the sampler has to store these huge matrices from the previous iterations for updating the parameters in the current iteration. 
+
+If we do this long enough, then eventually we would be drawing samples from the target posterior distribution.  
 
 ---
 
 class:animated, fadeInDown
 # Computational &amp; Storage Constraints
 
-The Gibbs sampler, at each iteration, 
+The MCMC sampler, at each iteration, 
 
 - performs several matrix operations such as matrix multiplication, matrix inversion, Cholesky decomposition
 - stores `\(\Lambda\)` for updating `\(\eta\)` and vice versa 
@@ -311,7 +316,7 @@ The Gibbs sampler, at each iteration,
 
 ???
 
-Read off the slide. 
+Despite having to sample from standard distribution such as Gaussian and Gamma, we are sampling from multivariate distributions. Sampling from multivariate distributions requires doing matrix operations such as multiplication, inversion and cholesky decomposition at every step of the sampler. 
 
 So when `\(p = O(10^4)\)` and `\(k = O(10^2)\)`, some of the methods cited earlier do not scale. This is our motivation for proposing a Divide and conquer strategy for covariance matrix estimation. 
 
@@ -368,9 +373,12 @@ Run the Gibbs sampler to obtain posterior estimate of `\(\Sigma^{(m)} \in {\math
 `$$\hat\Sigma^{(m)} = \hat\Lambda^{(m)}\hat\Lambda^{(m)T} + \hat\Omega^{(m)}$$`
 
 ???
+
+Machine `\(m\)` is supplied with n independent copies of the divided data. 
+
 On machine `\(m\)`, we regress `\(y^{(m)}\)` on `\(k_g\)`dimensional latent vectors where `\(k_g = k/g\)`. 
 
-Machine `\(m\)` aobserves the data in form of `\(p_g-\)`dimensional subvectors. 
+Note here that we have divided the factors across machines too in order to gain further computational speedups and savings. 
 
 Inferences are carried out, as before, by drawing random samples from the posterior distribution using the Gibbs sampler. 
 
@@ -378,7 +386,7 @@ These samples can be used to obtain an estimator for `\(\hat\Sigma^{(m)}\)`
 
 ---
 
-# Fit Step: Computational Gains
+#### Computational Gains
 
 
 | Model       | Complexity      |
@@ -387,6 +395,7 @@ These samples can be used to obtain an estimator for `\(\hat\Sigma^{(m)}\)`
 | Fit step in DNC |  `\({O}((k/g)^3 + n(pk/g^2) + n(k/g)^2 + (pk^2/g^3))\)`     | 
 
 --
+
 **How to combine estimates? How to Conquer?**
 --
 &lt;img src="inducingcorr2.jpeg" width="100%" /&gt;
@@ -415,7 +424,7 @@ where
 &gt; If `\({\text{Cov}}\big(Z_i^{(m)},Z_i^{(m')}\big) = 0\)`, then  `\(\text{Cov}\big(y_i^{(m)},y_i^{(m')}\big) = \rho\Lambda^{(m)}\Lambda^{(m')}\)`.
   
 ???
-We augment the factors over two components. One of them is shared while the other one is not shared. The shared component allows the machines to interact with each other. 
+We augment the factors over two components. One of them is shared while the other one is not shared. The shared component allows for a modeling framework wherein the estimates obtained from different machines are correlated with each other. 
 
 It's quite straight forward to show that, if the components that are not shared are not correlated, then the correlation between observed vectors on two different machines takes the form ... 
 
@@ -428,6 +437,7 @@ class:animated,fadeInDown
 The covariance matrix is given by `$$\Sigma = \Lambda_B \Lambda_B^{T} + (1 - \rho)\bigg(\mbox{diag}\{\Lambda^{(1)}\Lambda^{(1)T}, \ldots, \Lambda^{(g)}\Lambda^{(g)T}\} - \Lambda_B\Lambda_B^{T}\bigg) + \check\Omega$$` 
 
 where `\(\Lambda_B^T = (\Lambda^{(1)}, \ldots, \Lambda^{(g)}) \in \mathbb{R}^{\frac{k}{g} \times p}\)` and `\(\check\Omega = \text{diag}(\Omega^{(1)}, \ldots, \Omega^{(m)})\)`. 
+
 
 ---
 
@@ -451,8 +461,7 @@ available at [University of Michigan](https://umich.edu/).
 
 
 ???
-Next I will show you the advantage of our approach through numerical experiments on simulated data. All experiments were performed on flux which is a linux-based high performance computing cluster at University of Michigan. We want to compare in terms of loss in statistical accuracy 
-and gain in computational efficiency. 
+Next I will show you the advantage of our approach through numerical experiments on simulated data. All experiments were performed on flux which is a linux-based high performance computing cluster at University of Michigan.
 
 ---
 
@@ -476,6 +485,13 @@ class:animated, fadeInDown
   - frobenius norm `\(\|\cdot\|_F\)` where `\(\|A\|_F = \sqrt{\text{tr}(A^TA)}\)`
   - computation time, in minutes, per replication. 
 
+???
+
+- We generate data from a factor model where `\(\Omega = \sigma^2\mathrm{I}\)`. 
+- Each column of the matrix has at most these many non-zero entries. These entries occur at random and are drawn from `\(U(0.1,3)\)`. 
+- Number of samples is set to 100 for all experiments and we explore our method for different values of (dimensions, factors) and groups. 
+- Accuracy is measured in terms of operator and Frobenius norms. 
+- Computational efficiency is measured in terms of computation time per replication. 
 ---
 
 class: animated, fadeInDown

@@ -1,21 +1,3 @@
----
-title: "A Divide and Conquer Approach to High Dimensional Bayesian Factor Models"
-subtitle: ""
-author: "Gautam Sabnis"
-institute: "Boston University"
-output:
-  xaringan::moon_reader:
-    lib_dir: libs
-    css: [default, default-fonts, animate.css]
-    nature:
-      highlightStyle: github
-      highlightLines: true
-      countIncrementalSlides: true
-      header: \usepackage{xcolor}
-      
-
----
-
 class:animated, slideInRight
 # Outline
 
@@ -120,7 +102,7 @@ class:animated, fadeInDown
 **Classical approach** 
 
 Estimate $\Sigma$ via sample covariance matrix
-$$\hat\Sigma_{\text{n}} = \frac{1}{n}\sum\limits_{i=1}^{n}{{y}}_i{{y}}_i^T$$
+$$\hat\Sigma_{\text{n}} = \frac{1}{n}\sum\limits_{i=1}^{n}_i_i^T$$
 The performance of $\hat\Sigma_{\text{n}}$ degrades as $c = n/p \rightarrow 0$.
 
 
@@ -200,8 +182,8 @@ class: animated, fadeInDown
 is a factor model in which $\Lambda$ is sparse. 
 
 $$\Lambda_{p \times k} = {\begin{pmatrix} 
-\lambda_{11} & {\color{blue}{0}} & {{\lambda_{13}}} & \ldots & {\color{blue}{0}} \\
-\lambda_{21} & {{\lambda_{22}}} & {\color{blue}{0}} & \ldots & {\color{blue}{0}} \\ 
+\lambda_{11} & {\color{blue}{0}} & } & \ldots & {\color{blue}{0}} \\
+\lambda_{21} & } & {\color{blue}{0}} & \ldots & {\color{blue}{0}} \\ 
 \vdots & \vdots & \vdots & \ddots & \vdots \\ 
 {\color{blue}{0}} & \ldots & \lambda_{jh} & \ldots & {\color{blue}{0}} \\
 \vdots & \vdots & \vdots & \ddots & \vdots \\ 
@@ -362,7 +344,7 @@ $$\underbrace{\Pi(\Lambda^{(m)}, \eta^{(m)}, \Omega^{(m)} \mid y)}_{posterior} \
 
 --
 
-Run the Gibbs sampler to obtain posterior estimate of $\Sigma^{(m)} \in {\mathbb{R}}^{{p_g \times p_g}}$ via 
+Run the Gibbs sampler to obtain posterior estimate of $\Sigma^{(m)} \in {\mathbb{R}}^$ via 
 
 $$\hat\Sigma^{(m)} = \hat\Lambda^{(m)}\hat\Lambda^{(m)T} + \hat\Omega^{(m)}$$
 

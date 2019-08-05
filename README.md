@@ -1,6 +1,6 @@
 # xaringan_gh
 
-A example repo to demonstrate how to host xaringan slides on github page
+An example repo to demonstrate how to host xaringan slides on github page
 
 ## How to use:
 

@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+  <head>
+    <title>A Divide and Conquer Approach to High Dimensional Bayesian Factor Models</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Gautam Sabnis" />
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link rel="stylesheet" href="animate.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# A Divide and Conquer Approach to High Dimensional Bayesian Factor Models
+### Gautam Sabnis
+### Boston University
+
+---
+
+
+class:animated, slideInRight
+# Outline
+
+- Overview
+- Covariance Matrix Estimation
+  - Estimators for the covariance matrix 
+- Factor Models
+  - Sparse factor models
+  - Bayesian sparse fatent models
+- Choice of Priors
+- Posterior Computation: Gibbs sampler
+- A Divide and Conquer Framework
+  - Divide
+  - Fit
+  - Conquer
+- Numerical Experiments
+- Application to Thyroid Gene Expression Data
+
+???
+
+- Thanks for having me! In this talk, I will present a method for estimating a very large covariance matrix for very many variables.
+
+- A covariance matrix is a matrix whose diagonal entries contain the variances of each variable and the off-diagonal entries contrain the covariances each pair of variables. The covariance matrix measures the degree to which each pair of these variables is linearly associated. 
+
+- This technique might be very useful in immunological studies where one is interested in examining relationships between different cytokines measured in the same individual. 
+
+
+Outline 
+
+Here's the outline of my talk. 
+
+First I will give an overview of the propblem.
+
+
+---
+
+class: animated, fadeInDown
+# Overview
+
+- High-dimensional data is ubiquitous in modern applications
+
+- Example: Gene expression microarray analysis. `\(p =\)` number of genes, `\(n =\)` number of samples
+
+- High-dimensional data: `\(p \gg n\)` 
+
+- `\({\color{blue}{\text{Curse of dimensionality}}}\)`: classical statistical methods break down in such settings 
+
+- Dimensionality reduction is crucial
+
+
+???
+
+High-dimensional data is common in many modern applications. For example, in microarray experiments, data on a large number of genes is gathered. 
+
+In statistics lingo, we think of genes as variables. This means that the observations are in a `\(p-\)`dimensional space where `\(p &gt;&gt; n\)`. 
+
+The curse of dimensionality relates to the fact that classical statistical methods generally breakdown in these settings. 
+
+In terms of microarrays, this means that, apriori, we need an enormous amount of samples to find out, for example, which genes have altered expressions in a specific tumor type. 
+
+A very effective way of dealing with high-dimensional data is through dimensionality reduction (DR). Low dimensional representations of the data that remove the noise but retain the signal can be instrumental in understanding hidden structures and patterns. 
+
+---
+
+class:animated, fadeInDown
+
+# Covariance Estimation 
+- Goal: estimate a covariance matrix `\(\Sigma \in \mathbb{R}^{p \times p}\)`
+
+- given i.i.d. samples `\(y_i \sim N(0, \Sigma)\)`, for `\(i = \ldots, n\)`
+
+**Why covariance estimation?** 
+- Principal Component Analysis (PCA)
+- Linear/Quadratic Discriminant analysis (LDA/QDA)
+- Generalized Method of Moments (GMM)
+- Generalized Least Squares (GLS)
+- Canonical Correlation Analysis (CCA)
+
+
+
+???
+
+- Given `\(n\)` i.i.d. copies of a p-dimensional Gaussian random vector, we wish to estimate `\(\Sigma\)`. 
+
+- Why covariance estimation? Covariance matrices play an important role in many dimension reduction technqiues and estimation procedures in statistics and machine learning. Here is a list of some prominant cases. 
+
+- For example, in PCA, we want to find a low-dimensional coordinate system to project the data in such a way that the variance is maximized. This is done by applying a SVD to the covariance matrix. 
+
+- LDA analysis is a classification algorithm based on modeling class distributions as multivariate Gaussian distributions which requires the estimation of covariance matrices. 
+
+- GMM is a method for estimating parameters in a statistical model using moment conditions. Precise covariance estimates increase the efficiency of the GMM. 
+
+- In GLS, we allow the errors to be correlated and the estimation of the parameters then requires the estimation of noise covariance matrix. 
+
+- CCA finds maximally correlation linear combinations of two vector valued random variables. This relies on covariances and cross-covariances. 
+
+---
+
+class:animated, fadeInDown
+# Estimators for Covariance Matrix
+
+**Classical approach** 
+
+Estimate `\(\Sigma\)` via sample covariance matrix
+`$$\hat\Sigma_{\text{n}} = \frac{1}{n}\sum\limits_{i=1}^{n}{{y}}_i{{y}}_i^T$$`
+The performance of `\(\hat\Sigma_{\text{n}}\)` degrades as `\(c = n/p \rightarrow 0\)`.
+
+
+**Structured Estimation**
+
+Great interest in regularized estimation `\(({\color{blue}{\text{Ledoit &amp; Wolf, 2003b; Bickel &amp; Levina 2008 a,b; Cai and Zhou, 2011 ...}}})\)`
+
+Low intrinsic dimensionality `\(({\color{blue}{\text{Johnstone, 2001; Bhattacharya &amp; Dunson, 2011; Fan et al., 2013 ...}}})\)`
+
+
+
+???
+The standard estimator of the population covariance matrix is the sample covariance matrix. The properties of SCM depend on the dimensionality `\(p\)` and the performance of SCM deteriorates as `\(c \rightarrow  0\)`. 
+
+This is because an unstructured matrix has too many degrees of freedom.
+
+Regularization reduces the effective degrees of freedom by assuming an inherent dependence structure. Some examples of these structures are banding, tapering, sparse etc. and they are usually motivated via scientific applications. 
+
+An alternative approach to reducing the degrees of freedom is through low intrinsic dimensionality. Low intrinsic dimensionality posits that the dependencies between the variables are captured by a small number of latent components called factors that seperate the common sources of variation from variable sepecific noise. 
+
+---
+
+class:animated, fadeInDown
+# Factor Models
+
+- Highly successful approach for dimensionality reduction
+
+- Relate high-dimensional `\({\bf{y}}\)` to `\({\bf{\eta}} \in \mathbb{R}^{k}\)` through
+`$${\bf{y_i}} = \Lambda{\bf{\eta_i}} + {\bf{\epsilon_i}}, \quad {\bf{\epsilon_i}} \sim N(0,\Omega_p)$$`
+
+- `\(\Lambda \in \mathbb{R}^{p \times k}\)` is a tall-skinny (k &lt;&lt; p)               `\({\color{blue}{\text{factor loadings}}}\)` matrix 
+
+- `\(\mathbb{E}(\eta) = 0\)`, `\(\text{Var}(\eta) = \mathrm{I}_k\)`
+???
+
+Factor models provide a particularly useful framework for reducing the dimensionality. 
+
+Factor models relate `\(y\)` to `\(\eta\)` via this regression equation. `\(\Lambda\)` is the matrix of regression coefficients, but in the context of these models, these coefficients are known as factor loadings. It's a tall and skinny matrix which means the number of rows is much larger than the number of columns. 
+
+Since the factors are unobserved, we assume that they occur in standardized form with mean 0 and variance 1. 
+
+We make 2 assumptions in this model. 
+
+The noise terms are uncorrelated with each other which means `\(\Omega\)` is a diagonal matrix. 
+The error/noise terms are uncorrelated with the factors `\(\eta\)`.  
+
+But the more important conceptual assumption is that some underlying structure does exist in these observed `\(y\)` vectors which will be captured by these factors and help explain the dependencies in `\(y\)`. 
+
+  
+---
+
+class: middle, animated, fadeInDown
+
+Marginalizing out `\(\eta\)` gives `\(y \sim N(0,\Sigma)\)`  
+
+`$$\quad \Sigma = \Lambda\Lambda^T + \Omega$$`
+
+which leads to dimension reduction 
+`$$\mathcal{O}(p^2) \longrightarrow \mathcal{O}(pk + p)$$` 
+
+???
+Under these assumptions, marginalizing out the factors gives us a matrix factorization for `\(\Sigma\)` that can be written as a sum of a low-rank plus a sparse matrix. 
+
+The number of unknown entries on the right is linear in p on the right, and quadratic in p on left. 
+
+Our estimation problem is reduced to estimating a low rank matrix `\(\Lambda\)` and a diagonal sparse matrix `\(\Omega\)`. 
+
+Although the original specification of factor model leads to dimensionality reduction, the problem is still challenging when `\(p\)` is very large. 
+
+
+---
+
+class: animated, fadeInDown
+#Sparse Factor Models
+
+- A *sparse factor model* `\(\color{blue}{\text{(West 2003)}}\)`
+is a factor model in which `\(\Lambda\)` is sparse. 
+
+`$$\Lambda_{p \times k} = {\begin{pmatrix} 
+\lambda_{11} &amp; {\color{blue}{0}} &amp; {{\lambda_{13}}} &amp; \ldots &amp; {\color{blue}{0}} \\
+\lambda_{21} &amp; {{\lambda_{22}}} &amp; {\color{blue}{0}} &amp; \ldots &amp; {\color{blue}{0}} \\ 
+\vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\ 
+{\color{blue}{0}} &amp; \ldots &amp; \lambda_{jh} &amp; \ldots &amp; {\color{blue}{0}} \\
+\vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\ 
+{\color{blue}{0}} &amp; {\color{blue}{0}} &amp; \lambda_{p3} &amp; \ldots &amp; {\color{blue}{0}} \\
+\end{pmatrix}}$$`
+
+- For example, 
+&gt; `\(y =\)` gene expression, `\(\eta =\)` pathway expression 
+
+???
+
+Sparse factor models have been defined to address this issue. 
+
+The intuition comes from high-dimensional genetic applications where factors (the columns) are pathway expressions and only a few genes get loaded onto each pathway giving rise to many 0s. 
+
+---
+
+class: animated, fadeInDown
+# Bayesian Sparse Factor Models
+
+####Setup 
+
+- Observe `\(y_i \sim N(0,\Sigma), \; i = 1,\ldots,n\)`
+- `\(\eta \sim N(0,\mathrm{I}_k)\)`
+- `\(\Lambda \sim\)` Prior distribution
+- `\(\Omega \sim\)` Prior distribution
+
+####Posterior distribution 
+
+`$$\underbrace{\Pi(\Lambda, \eta, \Omega \mid y)}_{posterior} \propto \prod\limits_{i=1}^{n}\underbrace{\text{N}(y_i \mid \Lambda\eta_i, \Omega)}_{Likelihood} \underbrace{\pi(\Lambda)\pi(\eta_i)\pi(\Omega)}_{priors}$$`
+???
+
+We observe data in the form of `\(p\)`-dimensional vectors. As Bayesians, we assume that parameters in our model `\(\Lambda\)` and `\(\Omega\)` are random variables themselves, and they can be sampled from known statistical distributions called the 'prior' distributions. These distributions represent our assumptions about the model parameters. 
+
+Inferences in any Bayesian model are based on being able to draw random samples from the posterior distribution which is the product of the actual data and the prior distributions. 
+
+These random samples can be used to estimate a distribution of the possible parameter values. 
+
+Please note that I am slightly abusing the notation here. These distributions are placed on each entry of these matrices and not on the matrices as a whole. So these are not matrix-valued distributions. 
+
+---
+
+class: animated, fadeInDown
+# Choice of Priors
+
+- Multiplicative Gamma Process Shrinkage Prior (MGPS) &lt;span style="color:blue"&gt;(Bhattacharya &amp; Dunson 2011)&lt;span&gt;
+
+`$$\lambda_{jh}\mid{\phi_{jh}},{\tau_{h}} \sim N(0, (\phi_{jh}\tau_{h})^{-1}), \quad \phi_{jh} \sim \Gamma(\nu/2, \nu/2), \quad \tau_{h} = {\displaystyle\prod\limits_{l=1}^{h}{\delta_{l}}} \notag \\
+\delta_1 \sim \Gamma(a_1, 1), \quad \delta_{l} \sim \Gamma(a_2, 1), \; l \ge 2, \quad {\omega_{j}^{-2}} \sim \Gamma(a_\omega, b_\omega)$$`
+
+where 
+  - `\(\tau_{h}\)`: global shrinkage parameter
+  - `\(\phi_{jh}\)`: local shrinkage parameter
+  - `\(\Omega = \text{diag}(\omega_1^2, \ldots, \omega_p^2)\)`
+  
+???
+
+`\(\lambda_{jh}\)` is the entry in the `\(j^{th}\)` row and `\(h^{th}\)` column of `\(\Lambda\)` with a Gaussian prior distribution with mean 0 and a variance that is controlled by two parameters.
+
+The global shrinkage parameter controls the number of columns in `\(\Lambda\)` while the local shrinkage parameter controls the number of zeros in each column of `\(\Lambda\)`. 
+
+Wet put a Gamma prior on inverse of specific/noise variances. This is a standard prior. 
+
+---
+
+class: animated, fadeInDown
+# Posterior Computation
+
+####MCMC Sampler
+If the current state is `\((\Lambda^{(t)}, \eta^{(t)}, \Omega^{(t)})\)` at the `\(t^{\text{th}}\)` iteration, then update the parameter values by cycling through the following steps, 
+
+- Sample `\(\eta^{(t+1)} \sim \Pi_k(\eta \mid \Lambda^{(t)}, \Omega^{(t)})\)`
+- Sample `\(\Lambda_j^{(t+1)} \sim \Pi_k(\Lambda_j \mid \eta^{(t+1)}, \Omega^{(t)})\)`
+- Sample `\(\Omega^{(t+1)} \sim \Pi_p(\Omega \mid \Lambda^{(t+1)}, \eta^{(t+1)})\)`
+- Sample `\(\Phi_j^{(t+1)} \sim \Pi_k(\Phi \mid \Lambda^{(t+1)}, \delta^{(t)})\)`
+- Sample `\(\delta^{(t+1)} \sim \Pi(\delta \mid \Lambda^{(t+1)}, \Phi^{(t+1)})\)`
+- Sample the hyperparameters `\(a_1\)` and `\(a_2\)`
+
+???
+
+As I said earlier, inferences in a Bayesian model are based on our ability to draw samples of parameters from the posterior distribution. To draw these samples, we cycle through the following steps of Gibbs sampler. 
+
+In each step, if the distribution on the right is a known distribution, then sampling from it is straightforward although it can be computationally expensive. If no closed form exists, then we have to resort to Metropolis-Hastings step. 
+
+In any case if we do this long enough, then eventually we would be drawing samples from the target posterior distribution.  
+
+---
+
+class:animated, fadeInDown
+# Computational &amp; Storage Constraints
+
+The Gibbs sampler, at each iteration, 
+
+- performs several matrix operations such as matrix multiplication, matrix inversion, Cholesky decomposition
+- stores `\(\Lambda\)` for updating `\(\eta\)` and vice versa 
+
+| Matrix Operation        | Example          | Complexity  |
+|---------------|:-------------:|------:|
+| Multiplication     | `\(\Lambda^{T}\Lambda\)` | `\(\mathcal{O}(pk^2)\)` |
+| Inversion      |   `\((\Lambda^{T}\Lambda)^{-1}\)`    |   `\(\mathcal{O}(k^3)\)` |
+| Cholesky Decomposition | `\(\Lambda^{T}\Lambda\)`    |    `\(\mathcal{O}(k^3)\)` |
+
+&gt; One iteration of the Gibbs sampler for estimating `\(\Sigma\)` requires `\({O}(k^3 + npk + nk^2 + pk^2)\)` floating point operations for matrix computations, and a storage complexity of `\({O}(pk + k^2)\)`.
+
+???
+
+Read off the slide. 
+
+So when `\(p = O(10^4)\)` and `\(k = O(10^2)\)`, some of the methods cited earlier do not scale. This is our motivation for proposing a Divide and conquer strategy for covariance matrix estimation. 
+
+---
+
+class: animated, slideInRight
+# Divide-and-Conquer
+- Basic idea
+  - divide the high-dimensional data into low dimensional subproblems
+  - solve the subproblems in parallel using existing MCMC samplers 
+  - combine the estimates to produce a global estimate of the covariance matrix 
+
+- Divide-and-conquer approaches in the literature focus on tackling *large `\(n\)`* problems where the data are assumed to be independent and identically distributed &lt;span style="color:blue"&gt;(Mackey et al. 2011, Zhang et al. 2013, Minsker et al. 2014, Cheng &amp; Shang 2015)&lt;span&gt;
+ 
+&gt; We split dimension `\(p\)` across the subproblems.
+
+???
+
+At a high level, our approach
+
+-randomly divides the high dimensional data into low-dimensional subproblems
+-solves these subproblems in parallel using existing MCMC samplers
+- combines the solutions to produce a global estimate of the covariance matrix. 
+
+The existing DNC methods in the literature focus on large `\(n\)` where subsetting occurs in the number of samples. In our framework, we split across dimensions so that each subproblem has access to all the samples. 
+
+---
+
+class: animated, fadeInDown
+# Divide step
+
+Randomly partition `\(y_i \in \mathbb{R}^p\)` 
+`$$y_i \longrightarrow (y_i^{(1)}, \ldots, y_i^{(g)}), \quad i = 1,\ldots,n$$`
+so that `\(y_i^{(m)} \in \mathbb{R}^{p_g}\)` where `\(p_g = p/g\)` and `\(m = 1,\ldots,g\)`.
+&lt;img src="divide.png" width="50%" style="display: block; margin: auto;" /&gt;
+
+???
+In the first step, we randomly partition the `\(p-\)`dimensional vectors into `\(p_g-\)`dimensional sub vectors. For simplicity, we will assume that `\(p\)` is a multiple of `\(g\)`. 
+
+---
+
+# Fit Step
+
+On `\({\color{blue}{\text{machine m}}}\)`,
+`$$y_i^{(m)} = \Lambda^{(m)}_{{\color{blue}{p_g\times k_g}}}\;{\eta^{(m)}_{i_{\color{blue}{k_g\times 1}}}} + \epsilon_i^{(m)}, \quad i = 1, \ldots, n,$$` 
+
+--
+
+`$$\underbrace{\Pi(\Lambda^{(m)}, \eta^{(m)}, \Omega^{(m)} \mid y)}_{posterior} \propto \prod\limits_{i=1}^{n}\underbrace{\text{N}(y_i^{(m)} \mid \Lambda^{(m)}\eta_i^{(m)}, \Omega^{(m)})}_{Likelihood} \underbrace{\pi(\Lambda^{(m)})\pi(\eta_i^{(m)})\pi(\Omega^{(m)})}_{priors}$$`
+
+--
+
+Run the Gibbs sampler to obtain posterior estimate of `\(\Sigma^{(m)} \in {\mathbb{R}}^{\color{blue}{p_g \times p_g}}\)` via 
+
+`$$\hat\Sigma^{(m)} = \hat\Lambda^{(m)}\hat\Lambda^{(m)T} + \hat\Omega^{(m)}$$`
+???
+On machine `\(m\)`, we regress `\(y^{(m)}\)` on `\(k_g\)`dimensional latent vectors where `\(k_g = k/g\)`. 
+
+Machine `\(m\)` aobserves the data in form of `\(p_g-\)`dimensional subvectors. 
+
+Inferences are carried out, as before, by drawing random samples from the posterior distribution using the Gibbs sampler. 
+
+These samples can be used to obtain an estimator for `\(\hat\Sigma^{(m)}\)`
+
+---
+
+# Fit Step: Computational Gains
+
+
+| Model       | Complexity      |
+|---------------|:-------------:|
+| Original Fit step     | `\({O}(k^3 + npk + nk^2 + pk^2)\)` |
+| Fit step in DNC |  `\({O}((k/g)^3 + n(pk/g^2) + n(k/g)^2 + (pk^2/g^3))\)`     | 
+
+--
+**How to combine estimates? How to Conquer?**
+--
+&lt;img src="inducingcorr2.jpeg" width="100%" /&gt;
+
+???
+How do we combine estimates to form a global estimate of the covariance matrix? In other words, how do we do the conquer step? 
+
+Say we obtain estimates from 3 machines. If we assume them to be independent, we will lose the inherent dependence structure in the original p-dimensional observations and get something like in the right picture. 
+
+Next, I will present one solution to overcome this problem. 
+
+---
+class: animated, fadeInDown
+# Inducing Dependence
+
+Consider the hierarchical model
+`$$\eta_i^{(m)} = \sqrt{\rho}X_i + \sqrt{1 - \rho}Z_i^{(m)}$$`
+where 
+  - `\(X_i \sim N(0, I_{k_g})\)` : shared component 
+  
+  - `\(Z_i^{(m)} \sim N(0, I_{k_g})\)` : machine-specific component (not shared)
+  
+  - `\(0 &lt; \rho &lt; 1\)`   
+
+
+&gt; If `\({\text{Cov}}\big(Z_i^{(m)},Z_i^{(m')}\big) = 0\)`, then  `\(\text{Cov}\big(y_i^{(m)},y_i^{(m')}\big) = \rho\Lambda^{(m)}\Lambda^{(m')}\)`.
+  
+???
+We augment the factors over two components. One of them is shared while the other one is not shared. The shared component allows the machines to interact with each other. 
+
+It's quite straight forward to show that, if the components that are not shared are not correlated, then the correlation between observed vectors on two different machines takes the form ... 
+
+Using this hierarchical model, we show that global estimator for the covariance matrix obtained from our approach takes the following form. 
+
+---
+class:animated,fadeInDown
+#Conquer Step
+
+The covariance matrix is given by `$$\Sigma = \Lambda_B \Lambda_B^{T} + (1 - \rho)\bigg(\mbox{diag}\{\Lambda^{(1)}\Lambda^{(1)T}, \ldots, \Lambda^{(g)}\Lambda^{(g)T}\} - \Lambda_B\Lambda_B^{T}\bigg) + \check\Omega$$` 
+
+where `\(\Lambda_B^T = (\Lambda^{(1)}, \ldots, \Lambda^{(g)}) \in \mathbb{R}^{\frac{k}{g} \times p}\)` and `\(\check\Omega = \text{diag}(\Omega^{(1)}, \ldots, \Omega^{(m)})\)`. 
+
+---
+
+# Conquer Step: Illustration
+
+For `\(g = 3\)`, an estimate of `\(\Sigma\)` is given by 
+`$$\Sigma = \begin{pmatrix}\Lambda^{(1)}\Lambda^{(1)T} + \Omega^{(1)} &amp; \rho\Lambda^{(1)}\Lambda^{(2)^T} &amp; \rho\Lambda^{(1)}\Lambda^{(3)^T}\\ 
+\rho\Lambda^{(2)}\Lambda^{(1)T} &amp;              \Lambda^{(2)}\Lambda^{(2)T} &amp; \rho\Lambda^{(2)}\Lambda^{(3)^T} \\ \rho\Lambda^{(3)}\Lambda^{(1)^T} &amp; \rho\Lambda^{(3)}\Lambda^{(2)^T} &amp; \Lambda^{(3)}\Lambda^{(3)T} + \Omega^{(3)}\end{pmatrix}$$`
+
+--
+
+&lt;img src="inducingcorr3.jpeg" width="100%" /&gt;
+
+---
+
+class: center,middle, animated, slideInRight
+#Numerical Experiments 
+
+Experiments performed on simulated data using [Flux](https://arc-ts.umich.edu/flux/)
+available at [University of Michigan](https://umich.edu/). 
+
+
+???
+Next I will show you the advantage of our approach through numerical experiments on simulated data. All experiments were performed on flux which is a linux-based high performance computing cluster at University of Michigan. We want to compare in terms of loss in statistical accuracy 
+and gain in computational efficiency. 
+
+---
+
+class:animated, fadeInDown
+
+# Setup
+
+`$$y_i = \Lambda \eta_i + \epsilon_i, \quad i = 1,\ldots,n$$`
+- `\(\epsilon \sim N(0,\sigma^2\mathrm{I}), \;\; \sigma^2 = 0.5\)`
+
+- `\(\Lambda_h \in \mathbb{R}^p, \; h = 1,\ldots,k\)` is such that `\(\lvert{\Lambda_h}\rvert = \log{}(p)\)`
+
+- `\(\Lambda_{jh} \sim U(0.1,3)\)`
+
+- `\(n = 100\)` for all choices of `\(\{p,k\}\)` and `\(g\)`
+
+- Number of replications = 100
+
+- Comparison in terms of 
+  - operator norm `\(\|\cdot\|_2\)` where `\(\|A\|_2 = s_{\text{max}}(A)\)`,
+  - frobenius norm `\(\|\cdot\|_F\)` where `\(\|A\|_F = \sqrt{\text{tr}(A^TA)}\)`
+  - computation time, in minutes, per replication. 
+
+---
+
+class: animated, fadeInDown
+### Statistical Accuracy vs Computational Gain 
+
+- `\((p,k) = \{(252,6), (504,12), (1008,24), (2016,36)\}\)` 
+- `\(g = \{1,3,6\}\)`
+
+.pull-left[
+&lt;img src="errR.jpg" width="80%" /&gt;
+]
+.pull-right[
+&lt;img src="timeR.jpg" width="80%" /&gt;
+
+]
+
+???
+General trends:
+1. As `\(p\)` and `\(k\)` increase, the errors and times increase. 
+2. So let's fix `\(p\)` and `\(k\)` and examine the plots. 
+3. As we increase `\(g\)`, the errors increase but not by so much. The times decrease significantly. 
+4. Let's fix `\(p\)` and `\(k\)` to high values. And we can see the advantage of the divide and conquer framework. For p = 2016, fitting a factor model on a single machine takes 4 hours. Setting `\(g = 3\)`, this job can be done in half the time i.e. about 2 hours. Setting it to 6, the job can be done in an hour in exchange in a very small loss in statistical accuracy. 
+
+
+---
+
+class: animated, fadeInDown
+### Sensitivity to Random splitting
+
+.pull-left[
+&lt;div class="figure"&gt;
+&lt;img src="froerr-RS-p252.jpeg" alt="Frobenius norm errors for p=1008" width="80%" /&gt;
+&lt;p class="caption"&gt;Frobenius norm errors for p=1008&lt;/p&gt;
+&lt;/div&gt;
+]
+.pull-right[
+&lt;div class="figure"&gt;
+&lt;img src="operr-RS-p1008.jpeg" alt="Operator norm errors for p=1008" width="80%" /&gt;
+&lt;p class="caption"&gt;Operator norm errors for p=1008&lt;/p&gt;
+&lt;/div&gt;
+
+]
+
+???
+
+The results on the previous slide are obtained from 100 replications which means every single time new data was generated and the divide and conquer was appplied to the data. Is it possible that I got lucky with the random split in the divide step every time and got these optimistic results? 
+
+Here I do the experiment 100 times but this time I fix my data set and change my random splits every single time and display the results. 
+
+Now these figures do indicate that there are some splits that are more favourable than others but overall our method is quite robust to random splitting in the divide step.
+
+---
+
+class: animated, fadeInDown
+### Sensitivity to Random splitting
+.pull-left[
+&lt;div class="figure"&gt;
+&lt;img src="froerr-RS-p1008.jpeg" alt="Frobenius norm errors for p=2016" width="80%" /&gt;
+&lt;p class="caption"&gt;Frobenius norm errors for p=2016&lt;/p&gt;
+&lt;/div&gt;
+]
+.pull-right[
+&lt;div class="figure"&gt;
+&lt;img src="operr-RS-p2016.jpeg" alt="Operator norm errors for p=2016" width="80%" /&gt;
+&lt;p class="caption"&gt;Operator norm errors for p=2016&lt;/p&gt;
+&lt;/div&gt;
+
+]
+
+---
+class: animated, fadeInDown
+### Results
+
+- Compare [Divide and Conquer](https://github.com/gautam-sabnis/A-Divide-and-Conquer-Strategy-for-High-Dimensional-Bayesian-Factor-Models) (**DNC**) with [Principal Orthogonal Complement Thresholding](https://cran.r-project.org/web/packages/POET/index.html) (**POET**) and [Bayesian Factor Regression Modeling](https://www2.stat.duke.edu/~mw/mwsoftware/BFRM/index.html) (**BFRM**) in terms of statistical accuracy.
+
+- `\(n = 100\)`, `\((p,k) = \{(252,6), (1008, 24), (2016,36)\}\)`, `\(g = \{3,6\}\)`
+
+.pull-left[
+&lt;img src="opcomp2.jpg" width="80%" /&gt;
+]
+.pull-right[
+&lt;img src="timecomp2.jpg" width="80%" /&gt;
+]
+???
+I compare DNC with two very popular methods for covariance matrix estimation based on factor models in the literature. POET is an optimization free method that proposes an estimator of `\(\Sigma\)` based on PCA. BFRM is a comprehensive implementation of sparse statistical models in a Bayesian framework suited to many areas of applications in cancer genomics. Here I use it to estimate the covariance matrix.
+
+---
+
+.pull-left[
+&lt;img src="err4032.jpg" width="100%" /&gt;
+]
+.pull-right[
+&lt;img src="time4032.jpg" width="100%" /&gt;
+]
+--
+
+- **POET** runs into memory issues for `\(p = 4032\)`. 
+
+--
+
+p | k | Method | Error | Time  
+--- | --- | --- | --- | --- | --- 
+`\(10^4\)`| 100 | `\({\text{DNC}}_1\)` | `\({\color{red}{\text{Fail}}}\)` | `\({\color{red}{\text{Fail}}}\)` 
+`\(10^4\)`| 100 | POET | `\({\color{red}{\text{Fail}}}\)` | `\({\color{red}{\text{Fail}}}\)` 
+`\(10^4\)`| 100 | BFRM | `\({\color{red}{\text{Inaccurate}}}\)` | `\({\color{red}{\text{Inaccurate}}}\)` 
+`\(10^4\)`| 100 | `\({\text{DNC}}_{10}\)` | 66.28 (0.09) | 5 days 
+`\(10^4\)`| 100 | `\({\text{DNC}}_{20}\)` | 69.55 (0.16) | 3 days 
+
+   
+
+---
+
+# Application to Thyroid Gene Expression Data
+
+Thyroid
+-	organ in the human neck
+-	produces and secretes hormones
+-	the hormones regulate metabolism and production of proteins. 
+
+Dysregulation of gene expressions in the thyroid is associated with thyroid cancer.
+
+
+In our data, we had access to
+-	17,908 gene expressions of thyroid tissue samples from 278 donors. 
+-	Genotype information for each of the donors 
+-	Some covariates about the donors. 
+
+**Goal** -  
+Estimate the covariance matrix in order to understand the second order structure among these gene expressions i.e. how they co-vary. 
+
+---
+
+# Postprocessing &amp; Conclusions
+
+- Non-zero entries in each column were included in the corresponding gene cluster
+
+-  A Gene ontology enrichment analysis showed that 
+  -	many of the clustered genes in the first factor are related to apoptosis (cell death)
+  -	many of the other factors involved in cellular metabolic processes showed enrichment for genes. 
+
+
+&lt;img src="thyroid.jpg" width="100%" /&gt;
+
+---
+class: animated, fadeInDown
+# Summary
+
+- A Divide and Conquer strategy to accelerate posterior inference for high-dimensional covariance matrix estimation Bayesian sparse latent factor models is proposed. 
+
+- The approach is different from the existing divide and conquer strategies in that each subproblem includes all `\(n\)` samples and, instead, splits the dimension.  
+
+- The approach is parallelizable and shown to have computational efficiency of several orders of magnitude. 
+
+---
+
+class: inverse, animated, slideInRight
+# Acknowledgements
+
+- Debdeep Pati (Texas A&amp;M University)
+- Barbara Engelhardt (Princeton University)
+- Natesh Pillai (Harvard University)
+
+---
+
+class: inverse, center, middle, animated, slideInLeft
+
+# Thanks for your patience and attention! 
+
+
+---
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": true
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();</script>
+
+<script>
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

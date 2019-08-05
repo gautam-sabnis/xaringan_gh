@@ -337,6 +337,7 @@ The existing DNC methods in the literature focus on large $n$ where subsetting o
 ---
 
 class: animated, fadeInDown
+
 # Divide step
 
 Randomly partition $y_i \in \mathbb{R}^p$ 

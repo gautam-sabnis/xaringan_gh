@@ -353,7 +353,7 @@ In the first step, we randomly partition the $p-$dimensional vectors into $p_g-$
 
 # Fit Step
 
-On ${\color{blue}{\text{machine m}}}$,
+On machine $m$,
 $$y_i^{(m)} = \Lambda^{(m)}_{{\color{blue}{p_g\times k_g}}}\;{\eta^{(m)}_{i_{\color{blue}{k_g\times 1}}}} + \epsilon_i^{(m)}, \quad i = 1, \ldots, n,$$ 
 
 --

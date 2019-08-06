@@ -268,6 +268,8 @@ $\lambda_{jh}$ is the entry in the $j^{th}$ row and $h^{th}$ column of $\Lambda$
 
 The global shrinkage parameter controls the number of columns in $\Lambda$ while the local shrinkage parameter controls the number of zeros in each column of $\Lambda$. 
 
+Note that the effect of $\tau$ parameter will be larger on the column that is further to the right in the matrix. 
+
 Wet put a Gamma prior on inverse of specific/noise variances. This is a standard prior. 
 
 ---
@@ -672,7 +674,11 @@ class: animated, fadeInDown
 
 - Numerical studies demonstrate the computational speedups offered at the cost of minimial loss is accuracy. 
 
-- Application to gene expression data reveals certain biological processes but more research is needed to understand what is jointly regulating the expressed genes. 
+- Application to gene expression data reveals certain interesting biological processes but more research is needed to understand what is jointly regulating the expressed genes. 
+
+???
+
+Obviously I didn't cure cancer. But I made a small breakthrough. 
 
 ---
 

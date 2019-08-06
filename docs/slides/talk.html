@@ -619,8 +619,7 @@ Dysregulation of gene expressions in the thyroid is associated with differnt typ
 **Data**
 
 -	17,908 gene expressions of thyroid tissue samples from 278 donors
--	Genotype information for each of the donors 
--	A large number of covariates about the donors
+- Access to additional information such as time of death and sample collection 
 
 **Goal** 
 
@@ -636,6 +635,7 @@ class: animated, fadeInDown
 - The number of factors were set to `\(k = 110\)`. 
 - The 10 estimated factors across 11 groups are nearly identical, highlighting that each group finds similar estimates of the latent subspace despite using disjoint groups of genes. 
 
+&lt;img src="thyroid1.jpg" width="60%" /&gt;
 
 ---
 # Analysis 
@@ -660,6 +660,8 @@ class: animated, fadeInDown
 - Numerical studies demonstrate the computational speedups offered at the cost of minimial loss is accuracy. 
 
 - Application to gene expression data reveals certain interesting biological processes but more research is needed to understand what is jointly regulating the expressed genes. 
+
+- Theoretical guarantees in terms of some common functionals of the covariance matrix. 
 
 ???
 

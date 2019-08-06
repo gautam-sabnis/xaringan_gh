@@ -157,6 +157,8 @@ $${\bf{y_i}} = \Lambda{\bf{\eta_i}} + {\bf{\epsilon_i}}, \quad {\bf{\epsilon_i}}
 
 - $\mathbb{E}(\eta) = 0$, $\text{Var}(\eta) = \mathrm{I}_k$
 
+- Assumptions: 1) $\Omega$ is a diagonal matrix, 2) $\epsilon$ is independent of $\eta$. 
+
 ???
 
 Factor models provide a particularly useful framework for reducing the dimensionality. 
@@ -177,7 +179,7 @@ But the more important conceptual assumption is that some underlying structure d
 
 class: middle, animated, fadeInDown
 
-Marginalizing out $\eta$ gives $y \sim N(0,\Sigma)$  
+With assumptions (1) and (2), 
 
 $$\quad \Sigma = \Lambda\Lambda^T + \Omega$$
 
@@ -443,6 +445,10 @@ The covariance matrix is given by $$\Sigma = \Lambda_B \Lambda_B^{T} + (1 - \rho
 
 where $\Lambda_B^T = (\Lambda^{(1)}, \ldots, \Lambda^{(g)}) \in \mathbb{R}^{\frac{k}{g} \times p}$ and $\check\Omega = \text{diag}(\Omega^{(1)}, \ldots, \Omega^{(m)})$. 
 
+#### Notes
+- To sample from $\eta^{(m)} \sim N_k(\mu_\eta,\Sigma_\eta \mid \Lambda^{(m)}, \Omega^{(m)})$, draw samples from
+  - $X \sim N_k(\mu_\eta,\Sigma_\eta \mid \Lambda^{(m)}, \Omega^{(m)}, Z^{(m)})$
+  - $Z^{(m)} \sim N_k(\mu_\eta,\Sigma_\eta \mid \Lambda^{(m)}, \Omega^{(m)}, X)$ 
 
 ---
 
@@ -477,7 +483,7 @@ class:animated, fadeInDown
 # Setup
 
 $$y_i = \Lambda \eta_i + \epsilon_i, \quad i = 1,\ldots,n$$
-- $\epsilon \sim N(0,\sigma^2\mathrm{I}), \;\; \sigma^2 = 0.5$
+- $\epsilon \sim N(0,\Omega), \;\; \Omega = \text{diag}(\sigma_1^2, \ldots, \sigma_p^2), \;\; \sigma^{-2} \sim \Gamma(1,0.25)$
 
 - $\Lambda_h \in \mathbb{R}^p, \; h = 1,\ldots,k$ is such that $\lvert{\Lambda_h}\rvert = \log{}(p)$
 
@@ -621,46 +627,52 @@ $10^4$| 100 | ${\text{DNC}}_{20}$ | 69.55 (0.16) | 3 days
 
 # Application to Thyroid Gene Expression Data
 
-Thyroid
--	organ in the human neck
--	produces and secretes hormones
--	the hormones regulate metabolism and production of proteins. 
+Dysregulation of gene expressions in the thyroid is associated with differnt types of metabolic and autoimmune diseases and thyroid cancer. 
 
-Dysregulation of gene expressions in the thyroid is associated with thyroid cancer.
+**Data**
 
-
-In our data, we had access to
--	17,908 gene expressions of thyroid tissue samples from 278 donors. 
+-	17,908 gene expressions of thyroid tissue samples from 278 donors
 -	Genotype information for each of the donors 
--	Some covariates about the donors. 
+-	A large number of covariates about the donors
 
-**Goal** -  
-Estimate the covariance matrix in order to understand the second order structure among these gene expressions i.e. how they co-vary. 
+**Goal** 
+
+Estimate the covariance matrix in order to understand the second order structure among these gene expressions i.e. how they co-vary.
 
 ---
 
-# Postprocessing & Conclusions
+class: animated, fadeInDown
+# Analysis
+- Data matrix: $Y \in \mathbb{R}^{278 \times 17,908}$
+- We estimate the covariance matrix to obtain $\hat\Sigma$ using $g = 11$ with $p_g = 1,628$ genes. 
+- We ran the Gibbs sampler for $15,000$ iterations with $5,000$ burn-in and collected every first sample after burn-in to thin the chain. 
+- The number of factors were set to $k = 110$. 
+- The 10 estimated factors across 11 groups are nearly identical, highlighting that each group finds similar estimates of the latent subspace despite using disjoint groups of genes. 
 
-- Non-zero entries in each column were included in the corresponding gene cluster
 
--  A Gene ontology enrichment analysis showed that 
-  -	many of the clustered genes in the first factor are related to apoptosis (cell death)
-  -	many of the other factors involved in cellular metabolic processes showed enrichment for genes. 
+---
+# Analysis 
 
+- Entries in $\Lambda$ were thresholded to cluster genes within factors
 
-```{r out.width="100%", echo=FALSE}
-knitr::include_graphics("thyroid.jpg")
-```
+-  A Gene ontology enrichment analysis ${\color{blue}{\text{(Eden et al., 2009)}}}$ showed that 
+  -	many of the clustered genes in the first factor are related to cellular death processes
+  -	clustered genes contained in many other factors are involved in cellular metabolic processes (factors 3-6, 15, 22)
+
+Further analysis showed correlation of factors with ischemic time. This along with enrichment of genes involved in processes related to cellular metabolism and death suggested that covariation in the data is driven by the rapid decay of tissue samples postmortem. 
+
 
 ---
 class: animated, fadeInDown
 # Summary
 
-- A Divide and Conquer strategy to accelerate posterior inference for high-dimensional covariance matrix estimation Bayesian sparse latent factor models is proposed. 
+- A Divide and Conquer strategy is proposed to accelerate posterior inference for high-dimensional covariance matrix estimation in Bayesian sparse factor models is proposed. 
 
-- The approach is different from the existing divide and conquer strategies in that each subproblem includes all $n$ samples and, instead, splits the dimension.  
+- The approach is different from the existing divide and conquer strategies in that each subproblem includes all $n$ samples and, instead, splits problem across dimensions.  
 
-- The approach is parallelizable and shown to have computational efficiency of several orders of magnitude. 
+- Numerical studies demonstrate the computational speedups offered at the cost of minimial loss is accuracy. 
+
+- Application to gene expression data reveals certain biological processes but more research is needed to understand what is jointly regulating the expressed genes. 
 
 ---
 
@@ -673,7 +685,7 @@ class: inverse, animated, slideInRight
 
 ---
 
-class: inverse, center, middle, animated, slideInLeft
+class: inverse, center, middle, animated, slideInRight
 
 # Thanks for your patience and attention! 
 

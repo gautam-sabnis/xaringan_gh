@@ -31,7 +31,7 @@ class:animated, slideInRight
   - Divide
   - Fit
   - Conquer
-- Numerical Experiments
+- Synthetic Data Analysis
 - Application to Thyroid Gene Expression Data
 
 ???
@@ -50,6 +50,28 @@ Outline
 Here's the outline of my talk. 
 
 First I will give a brief overview, introduce the covariance matrix problem, introduce factor models and its variants and how they can be used to estimate covariance matrices. I will set up the Bayesian framework with appropriate priors and describe the MCMC sampler for doing inferences in this framework. We will see why the existing methods can't scale well. Next, I will introduce our Divide-and-Conquer modeling framework and show some simulation studies to convince you about the advantages of our approach. I will conclude with an application to a thyroid gene expression dataset. 
+
+---
+
+class: animated, fadeInDown
+#Motivation
+
+- Brain spectra ${\color{blue}{\text{covariance matrix}}}$ for autism infected adults at the National Taiwan University Hospital. 
+
+```{r out.width="50%", echo=FALSE, fig.align = 'center'}
+knitr::include_graphics("autism.jpg")
+```
+
+- Understand the patterns. 
+
+???
+
+Here we have the brain spectra covariance matrix for 30 adults with autism spectrum disorder. The study consists of around 8000 genes that are measured on these 30 indviduals. The goal is to understand how the genes are coexpressed or how they covary with each other. In order to do that, we need the covariance matrix. In the picture here, I am showing you the estimated covariance matrix for the first 110 genes. 
+
+As you can see, there is some structure here. Some genes don't covary with each other as much as the other ones do and their covariance can be assumed to be zero. 
+
+So the idea is to estimate the entries of this matrix from the samples we observe. 
+This is an example of high-dimensional data where we have fewer samples than the number of variables. 
 
 ---
 
@@ -469,7 +491,7 @@ knitr::include_graphics("inducingcorr3.jpeg")
 ---
 
 class: center,middle, animated, slideInRight
-#Numerical Experiments 
+#Synthetic Data Analysis
 
 Experiments performed on simulated data using [Flux](https://arc-ts.umich.edu/flux/)
 available at [University of Michigan](https://umich.edu/). 

@@ -22,7 +22,7 @@ class: center, middle, inverse, title-slide
 class:animated, slideInRight
 # Outline
 
-- Overview
+- Motivation
 - Covariance Matrix Estimation
   - Estimators for the covariance matrix 
 - Factor Models
@@ -59,29 +59,26 @@ First I will give a brief overview, introduce the covariance matrix problem, int
 class: animated, fadeInDown
 #Motivation
 
-- Brain spectra `\({\color{blue}{\text{covariance matrix}}}\)` for autism infected adults at the National Taiwan University Hospital. 
+Dysregulation of gene expressions in the thyroid is associated with different types of metabolic, autoimmune diseases and thyroid cancer. 
 
-&lt;img src="autism.jpg" width="50%" style="display: block; margin: auto;" /&gt;
+**Data**
 
-- Understand the patterns. 
+-	17,908 gene expressions of thyroid tissue samples from 278 donors
+- Access to additional information such as time of death and sample collection 
+
+**Goal** 
+
+Estimate the covariance matrix in order to understand the second order structure among these gene expressions i.e. how they co-vary.
 
 ???
-
-Here we have the brain spectra covariance matrix for 30 adults with autism spectrum disorder. The study consists of around 8000 genes that are measured on these 30 indviduals. The goal is to understand how the genes are coexpressed or how they covary with each other. In order to do that, we need the covariance matrix. In the picture here, I am showing you the estimated covariance matrix for the first 110 genes. 
-
-As you can see, there is some structure here. Some genes don't covary with each other as much as the other ones do and their covariance can be assumed to be zero. 
-
-So the idea is to estimate the entries of this matrix from the samples we observe. 
-This is an example of high-dimensional data where we have fewer samples than the number of variables. 
+Thyroid is an organ in the human neck that produces hormones that regulate metabolism, development and the production of proteins. 
 
 ---
 
 class: animated, fadeInDown
-# Overview
+# High-dimensional data
 
-- High-dimensional data is ubiquitous in modern applications
-
-- Example: Omics study where `\(p =\)` biological variables, `\(n =\)` number of samples
+- High-dimensional data are ubiquitous in modern applications
 
 - High-dimensional data: `\(p \gg n\)` 
 
@@ -92,13 +89,11 @@ class: animated, fadeInDown
 
 ???
 
-High-dimensional data is common in many modern applications. For example, in an omics study, data on a large number of biological variables is gathered for a small number of samples. 
+High-dimensional data is common in many modern applications. For example, in an omics study, `\(p\)` can range from serveral hundreds to millions. 
 
-This means that the observations are represented in `\(p-\)`dimensional spaces where `\(p\)` can range from serveral hundreds to millions. 
+The curse of dimensionality relates to the fact that classical statistical methods breakdown in these settings. 
 
-The curse of dimensionality relates to the fact that classical statistical methods generally breakdown in these settings. 
-
-The goal of dimension reduction is to identify a set of new variables using a linear combination of original variables such that the number of new variables is much smaller than `\(p\)`. 
+The goal of dimension reduction is to identify a set of new variables that capture the same amount of information as the original set of variables but the new set is smaller than the original set. 
 
 ---
 
